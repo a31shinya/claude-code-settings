@@ -6,7 +6,7 @@ description: X（Twitter）の記事・ポストのURLを渡されたら、本�
 # X記事をMarkdownで忠実に保存する
 
 X（Twitter）のポストURL・記事URLを受け取り、`~/x-article/` 配下に
-`<タイトル>.md` ＋ `images/` ＋ `raw.json` として保存する。保存したURLは
+`<記事タイトル>.md` ＋ `images/` ＋ `raw.json` として保存する。保存したURLは
 `~/x-article/articles.csv` に台帳として記録し、登録済みURLは再取得せずスキップする。
 
 ## 前提
@@ -34,7 +34,7 @@ python3 ~/.claude/skills/save-x-article/scripts/x_article_to_md.py \
 ~/x-article/
     articles.csv                             保存済み台帳（1行目にヘッダ URL,記事フォルダ名）
     2026-09-08_ai_jitan_<タイトル>/
-        <タイトル>.md  本文（YAMLフロントマター付き。ファイル名もタイトル）
+        <タイトル>.md  本文（YAMLフロントマター付き）
         images/       cover.jpg, img-01.jpg, ...
         raw.json      取得した生JSON（再生成用）
 ```
@@ -106,7 +106,7 @@ python3 ~/.claude/skills/save-x-article/scripts/x_article_to_md.py \
 
 ## 忠実さのために守っていること
 
-スクリプトは以下を保証しているので、本文Markdownを手で編集して整えないこと。
+スクリプトは以下を保証しているので、保存された本文Markdownを手で編集して整えないこと。
 手直しが必要になった場合は、原因をスクリプト側で直すか `--fence-blocks` で対処する。
 
 - 見出し階層: 記事タイトル → `#`、`header-one` → `##`、`header-two` → `###`
