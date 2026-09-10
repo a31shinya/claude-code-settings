@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>スライドレビュー</title>
+<style>
+  :root {
+    --border: #d7dbe0;
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --accent: #2f5fe0;
+    --accent-weak: #eef2ff;
+    --red: #e0332f;
+    --red-weak: #fdecec;
+    --amber: #c98a12;
+    --amber-weak: #fdf3e0;
+    --green: #1f9254;
+    --green-weak: #e9f7ef;
+    --text: #1f2328;
+    --text-sub: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header.app-header {
+    padding: 14px 20px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header.app-header h1 {
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+  header.app-header p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-sub);
+  }
+  nav.page-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .tab-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+  .tab {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12.5px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .tab.judged-OK { border-color: var(--green); }
+  .tab.judged-要修正 { border-color: var(--amber); }
+  .tab.judged-NG { border-color: var(--red); }
+  .nav-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .nav-btn:disabled { opacity: .4; cursor: default; }
+  .page-counter {
+    font-size: 12.5px;
+    color: var(--text-sub);
+    min-width: 52px;
+    text-align: center;
+  }
+  main.workspace {
+    display: flex;
+    gap: 16px;
+    padding: 16px 20px 90px;
+    align-items: flex-start;
+  }
+  .slide-col { flex: 1 1 62%; min-width: 320px; }
+  .side-col { flex: 1 1 34%; min-width: 280px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .slide-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .slide-panel-head .title {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  #markBtn {
+    border: 1px solid var(--red);
+    color: var(--red);
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  #markBtn.active {
+    background: var(--red);
+    color: #fff;
+  }
+  .stage-wrap {
+    padding: 14px;
+  }
+  .stage-scroll {
+    max-height: 70vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: repeating-conic-gradient(#f0f1f3 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+  }
+  .stage {
+    position: relative;
+    user-select: none;
+    cursor: default;
+    line-height: 0;
+  }
+  .stage.marking { cursor: crosshair; }
+  .stage img.slide-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    pointer-events: none;
+  }
+  .rect-layer { position: absolute; inset: 0; }
+  .rect-box {
+    position: absolute;
+    border: 2px solid var(--red);
+    background: rgba(224,51,47,0.08);
+    box-sizing: border-box;
+  }
+  .rect-badge {
+    position: absolute;
+    top: -11px;
+    left: -11px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--red);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .drag-preview {
+    position: absolute;
+    border: 2px dashed var(--red);
+    background: rgba(224,51,47,0.12);
+  }
+  .stage-hint {
+    padding: 8px 14px 14px;
+    font-size: 11.5px;
+    color: var(--text-sub);
+  }
+  .side-section {
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .side-section:last-child { border-bottom: none; }
+  .side-section h2 {
+    font-size: 12px;
+    margin: 0 0 10px;
+    color: var(--text-sub);
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+  .anno-item {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+  .anno-num {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--red);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+  .anno-item textarea {
+    flex: 1;
+    resize: vertical;
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12.5px;
+    font-family: inherit;
+  }
+  .anno-item textarea.pulse {
+    outline: 2px solid var(--accent);
+  }
+  .del-btn {
+    flex: none;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11.5px;
+    cursor: pointer;
+    color: var(--text-sub);
+  }
+  .del-btn:hover { color: var(--red); border-color: var(--red); }
+  .empty-anno {
+    font-size: 12.5px;
+    color: var(--text-sub);
+  }
+  .judge-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .judge-btn {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 6px;
+    padding: 7px 0;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .judge-btn[data-v="OK"].active { background: var(--green-weak); border-color: var(--green); color: var(--green); }
+  .judge-btn[data-v="要修正"].active { background: var(--amber-weak); border-color: var(--amber); color: var(--amber); }
+  .judge-btn[data-v="NG"].active { background: var(--red-weak); border-color: var(--red); color: var(--red); }
+  textarea.page-comment {
+    width: 100%;
+    min-height: 60px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 12.5px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .ref-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .ref-thumb {
+    width: 54px;
+    height: 34px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    text-decoration: underline;
+  }
+  footer.app-footer {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .primary-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .ghost-btn {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-sub);
+  }
+  .progress-text {
+    margin-left: auto;
+    font-size: 12.5px;
+    color: var(--text-sub);
+  }
+  .judge-help {
+    font-size: 11px;
+    color: var(--text-sub);
+    margin: -4px 0 10px;
+    line-height: 1.5;
+  }
+  .copy-toast {
+    font-size: 12px;
+    color: var(--green);
+    margin-left: 8px;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .copy-toast.show { opacity: 1; }
+
+  /* modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,20,30,0.45);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 10px; width: min(640px, 92vw); max-height: 80vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .modal-head { padding: 14px 16px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  .modal-head h3 { margin: 0; font-size: 14px; }
+  .modal-body { padding: 14px 16px; overflow: auto; }
+  .modal-body pre {
+    background: #0d1117; color: #d8e2ef; padding: 12px; border-radius: 8px;
+    font-size: 11.5px; overflow: auto; max-height: 45vh; white-space: pre-wrap; word-break: break-all;
+  }
+  .modal-foot { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>スライドレビュー</h1>
+  <p>「マーク」を押してから画像上をドラッグすると赤枠が付きます。全ページ確認したら「書いた（まとめて出す）」を押し、JSONをコピーしてClaude Codeに貼り付けてください。</p>
+</header>
+
+<nav class="page-nav">
+  <div class="tab-group" id="tabGroup"></div>
+  <button class="nav-btn" id="prevBtn">← 前</button>
+  <span class="page-counter" id="pageCounter"></span>
+  <button class="nav-btn" id="nextBtn">次 →</button>
+</nav>
+
+<main class="workspace">
+  <div class="slide-col">
+    <div class="panel">
+      <div class="slide-panel-head">
+        <span class="title" id="slideTitle"></span>
+        <button id="markBtn">マーク</button>
+      </div>
+      <div class="stage-wrap">
+        <div class="stage-scroll">
+          <div class="stage" id="stage">
+            <img class="slide-img" id="slideImg" alt="" />
+            <div class="rect-layer" id="rectLayer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="stage-hint">画像の上をなぞると赤枠が付きます。バッジ番号をクリックすると右側の対応する入力欄にフォーカスします。長い画像は枠内でスクロールできます。</div>
+    </div>
+  </div>
+
+  <div class="side-col">
+    <div class="panel">
+      <div class="side-section">
+        <h2>赤枠フィードバック</h2>
+        <div id="annoList"></div>
+      </div>
+      <div class="side-section">
+        <h2>このページの判定</h2>
+        <div class="judge-row" id="judgeRow">
+          <button class="judge-btn" data-v="OK">OK</button>
+          <button class="judge-btn" data-v="要修正">要修正</button>
+          <button class="judge-btn" data-v="NG">NG</button>
+        </div>
+        <p class="judge-help">OK＝このページは確定。要修正＝赤枠の指摘に対応すればよい。NG＝赤枠では収まらない全面作り直し（コメントに「削除」等と書けばページ自体の削除として扱われます）。</p>
+        <textarea class="page-comment" id="pageComment" placeholder="このページ全体へのフィードバック（自由記述）"></textarea>
+      </div>
+      <div class="side-section">
+        <h2>参考画像を添付（この端末内のみ）</h2>
+        <div class="ref-row">
+          <input type="file" accept="image/*" id="refInput" />
+        </div>
+        <div class="ref-row" id="refPreviewRow" style="margin-top:8px; display:none;">
+          <img class="ref-thumb" id="refThumb" />
+          <button class="link-btn" id="refClear">削除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="app-footer">
+  <button class="primary-btn" id="writeBtn">書いた（まとめて出す）</button>
+  <button class="ghost-btn" id="clearAllBtn">全部消す</button>
+  <span class="progress-text" id="progressText"></span>
+</footer>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>feedback.json プレビュー</h3>
+      <button class="link-btn" id="modalClose">閉じる</button>
+    </div>
+    <div class="modal-body">
+      <pre id="jsonPreview"></pre>
+    </div>
+    <div class="modal-foot">
+      <span class="copy-toast" id="copyToast">コピーしました</span>
+      <button class="ghost-btn" id="modalCloseBtn">閉じる</button>
+      <button class="ghost-btn" id="downloadBtn">ファイルでダウンロード</button>
+      <button class="primary-btn" id="copyBtn">JSONをコピー</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // scripts/lib/renderReviewHtml.js が下のプレースホルダーを実データで置換する。
+  // 形式: [{ title: "P01", image: "pages/page-01.png" }, ...]
+  const pagesData = /*__PAGES_DATA_JSON__*/[]/*__END_PAGES_DATA_JSON__*/;
+
+  const state = {
+    current: 0,
+    pages: pagesData.map((p) => ({
+      title: p.title,
+      image: p.image,
+      judgement: null,
+      pageComment: "",
+      annotations: [],
+      referenceImage: null
+    }))
+  };
+
+  let markingMode = false;
+  let dragState = null;
+
+  const tabGroup = document.getElementById("tabGroup");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const pageCounter = document.getElementById("pageCounter");
+  const slideTitle = document.getElementById("slideTitle");
+  const slideImg = document.getElementById("slideImg");
+  const rectLayer = document.getElementById("rectLayer");
+  const stage = document.getElementById("stage");
+  const markBtn = document.getElementById("markBtn");
+  const annoList = document.getElementById("annoList");
+  const judgeRow = document.getElementById("judgeRow");
+  const pageComment = document.getElementById("pageComment");
+  const refInput = document.getElementById("refInput");
+  const refPreviewRow = document.getElementById("refPreviewRow");
+  const refThumb = document.getElementById("refThumb");
+  const refClear = document.getElementById("refClear");
+  const writeBtn = document.getElementById("writeBtn");
+  const clearAllBtn = document.getElementById("clearAllBtn");
+  const progressText = document.getElementById("progressText");
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const jsonPreview = document.getElementById("jsonPreview");
+  const modalClose = document.getElementById("modalClose");
+  const modalCloseBtn = document.getElementById("modalCloseBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const copyBtn = document.getElementById("copyBtn");
+  const copyToast = document.getElementById("copyToast");
+
+  function page() { return state.pages[state.current]; }
+
+  function renderTabs() {
+    tabGroup.innerHTML = "";
+    state.pages.forEach((p, i) => {
+      const b = document.createElement("button");
+      b.className = "tab" + (i === state.current ? " active" : "") + (p.judgement ? ` judged-${p.judgement}` : "");
+      b.textContent = p.title;
+      b.addEventListener("click", () => goTo(i));
+      tabGroup.appendChild(b);
+    });
+    prevBtn.disabled = state.current === 0;
+    nextBtn.disabled = state.current === state.pages.length - 1;
+    pageCounter.textContent = `${state.current + 1} / ${state.pages.length}`;
+  }
+
+  function renderSlide() {
+    slideTitle.textContent = page().title;
+    slideImg.src = page().image;
+    renderRects();
+  }
+
+  function renderRects() {
+    rectLayer.innerHTML = "";
+    page().annotations.forEach((a, idx) => {
+      const box = document.createElement("div");
+      box.className = "rect-box";
+      box.style.left = a.xPct + "%";
+      box.style.top = a.yPct + "%";
+      box.style.width = a.wPct + "%";
+      box.style.height = a.hPct + "%";
+      const badge = document.createElement("div");
+      badge.className = "rect-badge";
+      badge.textContent = idx + 1;
+      badge.addEventListener("click", (e) => {
+        e.stopPropagation();
+        focusAnnoTextarea(idx);
+      });
+      box.appendChild(badge);
+      rectLayer.appendChild(box);
+    });
+  }
+
+  function renderAnnoList() {
+    annoList.innerHTML = "";
+    if (page().annotations.length === 0) {
+      const p = document.createElement("p");
+      p.className = "empty-anno";
+      p.textContent = "まだ赤枠がありません。「マーク」を押して画像上をドラッグしてください。";
+      annoList.appendChild(p);
+      return;
+    }
+    page().annotations.forEach((a, idx) => {
+      const row = document.createElement("div");
+      row.className = "anno-item";
+      const num = document.createElement("div");
+      num.className = "anno-num";
+      num.textContent = idx + 1;
+      const ta = document.createElement("textarea");
+      ta.placeholder = "この枠の中を、どう直す？";
+      ta.value = a.comment || "";
+      ta.dataset.idx = idx;
+      ta.addEventListener("input", () => { a.comment = ta.value; });
+      const del = document.createElement("button");
+      del.className = "del-btn";
+      del.textContent = "消す";
+      del.addEventListener("click", () => {
+        page().annotations.splice(idx, 1);
+        renderRects();
+        renderAnnoList();
+        updateProgress();
+      });
+      row.appendChild(num);
+      row.appendChild(ta);
+      row.appendChild(del);
+      annoList.appendChild(row);
+    });
+  }
+
+  function focusAnnoTextarea(idx) {
+    const textareas = annoList.querySelectorAll("textarea");
+    const ta = textareas[idx];
+    if (!ta) return;
+    ta.scrollIntoView({ behavior: "smooth", block: "center" });
+    ta.classList.add("pulse");
+    ta.focus();
+    setTimeout(() => ta.classList.remove("pulse"), 900);
+  }
+
+  function renderJudge() {
+    [...judgeRow.children].forEach((b) => {
+      b.classList.toggle("active", b.dataset.v === page().judgement);
+    });
+    pageComment.value = page().pageComment || "";
+  }
+
+  function renderRef() {
+    if (page().referenceImage) {
+      refThumb.src = page().referenceImage;
+      refPreviewRow.style.display = "flex";
+    } else {
+      refPreviewRow.style.display = "none";
+    }
+    refInput.value = "";
+  }
+
+  function updateProgress() {
+    const judged = state.pages.filter((p) => p.judgement).length;
+    const rectCount = state.pages.reduce((sum, p) => sum + p.annotations.length, 0);
+    progressText.textContent = `判定 ${judged}/${state.pages.length}ページ ／ 赤枠 ${rectCount}個`;
+  }
+
+  function renderAll() {
+    renderTabs();
+    renderSlide();
+    renderAnnoList();
+    renderJudge();
+    renderRef();
+    updateProgress();
+    setMarking(false);
+  }
+
+  function goTo(i) {
+    state.current = i;
+    renderAll();
+  }
+
+  prevBtn.addEventListener("click", () => { if (state.current > 0) goTo(state.current - 1); });
+  nextBtn.addEventListener("click", () => { if (state.current < state.pages.length - 1) goTo(state.current + 1); });
+
+  function setMarking(on) {
+    markingMode = on;
+    markBtn.classList.toggle("active", on);
+    markBtn.textContent = on ? "マーク中（もう一度押すと終了）" : "マーク";
+    stage.classList.toggle("marking", on);
+  }
+
+  markBtn.addEventListener("click", () => setMarking(!markingMode));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && markingMode) setMarking(false);
+  });
+
+  stage.addEventListener("mousedown", (e) => {
+    if (!markingMode) return;
+    const rect = stage.getBoundingClientRect();
+    dragState = {
+      startX: e.clientX - rect.left,
+      startY: e.clientY - rect.top
+    };
+    const preview = document.createElement("div");
+    preview.className = "drag-preview";
+    preview.id = "dragPreview";
+    rectLayer.appendChild(preview);
+  });
+
+  stage.addEventListener("mousemove", (e) => {
+    if (!dragState) return;
+    const rect = stage.getBoundingClientRect();
+    const curX = e.clientX - rect.left;
+    const curY = e.clientY - rect.top;
+    const x = Math.min(curX, dragState.startX);
+    const y = Math.min(curY, dragState.startY);
+    const w = Math.abs(curX - dragState.startX);
+    const h = Math.abs(curY - dragState.startY);
+    const preview = document.getElementById("dragPreview");
+    if (preview) {
+      preview.style.left = x + "px";
+      preview.style.top = y + "px";
+      preview.style.width = w + "px";
+      preview.style.height = h + "px";
+    }
+  });
+
+  window.addEventListener("mouseup", (e) => {
+    if (!dragState) return;
+    const rect = stage.getBoundingClientRect();
+    let curX = e.clientX - rect.left;
+    let curY = e.clientY - rect.top;
+    curX = Math.max(0, Math.min(curX, rect.width));
+    curY = Math.max(0, Math.min(curY, rect.height));
+    let x = Math.min(curX, dragState.startX);
+    let y = Math.min(curY, dragState.startY);
+    let w = Math.abs(curX - dragState.startX);
+    let h = Math.abs(curY - dragState.startY);
+
+    const MIN_PX = 24;
+    if (w < MIN_PX && h < MIN_PX) {
+      w = Math.max(w, rect.width * 0.12);
+      h = Math.max(h, rect.height * 0.08);
+      x = Math.max(0, Math.min(x, rect.width - w));
+      y = Math.max(0, Math.min(y, rect.height - h));
+    }
+
+    const preview = document.getElementById("dragPreview");
+    if (preview) preview.remove();
+    dragState = null;
+
+    if (w < 4 || h < 4) return;
+
+    page().annotations.push({
+      xPct: +(x / rect.width * 100).toFixed(2),
+      yPct: +(y / rect.height * 100).toFixed(2),
+      wPct: +(w / rect.width * 100).toFixed(2),
+      hPct: +(h / rect.height * 100).toFixed(2),
+      comment: ""
+    });
+    renderRects();
+    renderAnnoList();
+    updateProgress();
+    focusAnnoTextarea(page().annotations.length - 1);
+  });
+
+  pageComment.addEventListener("input", () => { page().pageComment = pageComment.value; });
+
+  judgeRow.addEventListener("click", (e) => {
+    const btn = e.target.closest(".judge-btn");
+    if (!btn) return;
+    page().judgement = page().judgement === btn.dataset.v ? null : btn.dataset.v;
+    renderJudge();
+    renderTabs();
+    updateProgress();
+  });
+
+  refInput.addEventListener("change", () => {
+    const file = refInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      page().referenceImage = reader.result;
+      renderRef();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  refClear.addEventListener("click", () => {
+    page().referenceImage = null;
+    renderRef();
+  });
+
+  clearAllBtn.addEventListener("click", () => {
+    if (!confirm("全ページの赤枠・コメント・判定を消去します。よろしいですか？")) return;
+    state.pages.forEach((p) => {
+      p.judgement = null;
+      p.pageComment = "";
+      p.annotations = [];
+      p.referenceImage = null;
+    });
+    renderAll();
+  });
+
+  function buildFeedbackJson() {
+    return {
+      exportedAt: new Date().toISOString(),
+      pages: state.pages.map((p, i) => ({
+        page: i + 1,
+        judgement: p.judgement,
+        pageComment: p.pageComment,
+        annotations: p.annotations.map((a, idx) => ({
+          id: idx + 1,
+          rect: { xPct: a.xPct, yPct: a.yPct, wPct: a.wPct, hPct: a.hPct },
+          comment: a.comment
+        })),
+        referenceImage: p.referenceImage || null
+      }))
+    };
+  }
+
+  writeBtn.addEventListener("click", () => {
+    const json = buildFeedbackJson();
+    jsonPreview.textContent = JSON.stringify(json, null, 2);
+    modalBackdrop.classList.add("open");
+  });
+
+  function closeModal() { modalBackdrop.classList.remove("open"); }
+  modalClose.addEventListener("click", closeModal);
+  modalCloseBtn.addEventListener("click", closeModal);
+  modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
+
+  downloadBtn.addEventListener("click", () => {
+    const json = buildFeedbackJson();
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "feedback.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        return ok;
+      } catch (err2) {
+        return false;
+      }
+    }
+  }
+
+  copyBtn.addEventListener("click", async () => {
+    const json = buildFeedbackJson();
+    const ok = await copyText(JSON.stringify(json, null, 2));
+    if (ok) {
+      copyToast.textContent = "コピーしました";
+      copyToast.style.color = "var(--green)";
+      copyToast.classList.add("show");
+    } else {
+      copyToast.textContent = "コピーに失敗しました";
+      copyToast.style.color = "var(--red)";
+      copyToast.classList.add("show");
+    }
+    setTimeout(() => copyToast.classList.remove("show"), 1600);
+  });
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>

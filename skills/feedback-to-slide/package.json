@@ -1,0 +1,16 @@
+{
+  "name": "feedback-to-slide",
+  "private": true,
+  "version": "0.1.0",
+  "description": "feedback-to-slide Claude Code skill implementation (PDF/HTML slide review with rectangle annotations)",
+  "scripts": {
+    "init": "node scripts/init.js",
+    "apply": "node scripts/apply.js",
+    "export": "node scripts/export.js"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pptxgenjs": "^3.12.0",
+    "puppeteer": "^23.11.1"
+  }
+}
