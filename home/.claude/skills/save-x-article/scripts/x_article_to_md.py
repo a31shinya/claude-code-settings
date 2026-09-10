@@ -16,7 +16,7 @@ options:
 出力:
     <outdir>/articles.csv                       保存済みURL台帳（ヘッダ: URL,記事フォルダ名）
     <outdir>/<YYYY-MM-DD>_<screen_name>_<title>/
-        index.md      本文 Markdown
+        <title>.md    本文 Markdown（ファイル名にも記事タイトルを付ける）
         raw.json      取得した生JSON（再生成用）
         images/       cover.<ext>, img-01.<ext> ...
 
@@ -589,9 +589,10 @@ def save_one(data, outroot, download=True, overwrite=False, quiet=False,
                  or tweet.get("text") or "post").split("\n")[0]
         title = first[:60]
 
+    title_slug = slugify(title)
     dirname = "%s_%s_%s" % (created.strftime("%Y-%m-%d"),
                             author.get("screen_name") or "unknown",
-                            slugify(title))
+                            title_slug)
     dest = os.path.join(outroot, dirname)
     if os.path.exists(dest) and not overwrite:
         i = 2
@@ -660,7 +661,8 @@ def save_one(data, outroot, download=True, overwrite=False, quiet=False,
         body.append("---")
         body.append(render_plain_tweet(tweet, saver))
 
-    with open(os.path.join(dest, "index.md"), "w", encoding="utf-8") as f:
+    md_filename = title_slug + ".md"
+    with open(os.path.join(dest, md_filename), "w", encoding="utf-8") as f:
         f.write("\n\n".join(b for b in body if b and b.strip()) + "\n")
     with open(os.path.join(dest, "raw.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -672,7 +674,7 @@ def save_one(data, outroot, download=True, overwrite=False, quiet=False,
         stats["code_entities"] = sum(
             1 for v in entity_map_dict(content).values()
             if (v.get("type") or "").upper() == "MARKDOWN")
-    return dest, saver.manifest, stats
+    return dest, md_filename, saver.manifest, stats
 
 
 CSV_NAME = "articles.csv"
@@ -786,13 +788,13 @@ def main(argv=None):
     rc = 0
     for src_url, data in jobs:
         try:
-            dest, manifest, stats = save_one(data, outroot,
+            dest, md_filename, manifest, stats = save_one(data, outroot,
                                              download=not args.no_images,
                                              overwrite=args.overwrite,
                                              quiet=args.quiet,
                                              fence_ranges=fence_ranges)
             missing = [m["remote"] for m in manifest if m["local"] is None]
-            print("SAVED %s" % os.path.join(dest, "index.md"))
+            print("SAVED %s" % os.path.join(dest, md_filename))
             print("  blocks: %d / code_entities: %d" % (
                 stats["blocks"], stats["code_entities"]))
             print("  images: %d 件 / 未取得 %d 件" % (len(manifest), len(missing)))
